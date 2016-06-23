@@ -9,8 +9,11 @@ var TestData = require('./testdata');
 
 
 describe('paypro', function() {
-  var xhr, httpNode;
+  var xhr, httpNode, clock;
   before(function() {
+    // Stub time before cert expiration at Mar 27 2016
+    clock = sinon.useFakeTimers(1459105693843);
+
     xhr = {};
     xhr.onCreate = function(req) {};
     xhr.open = function(method, url) {};
@@ -40,13 +43,16 @@ describe('paypro', function() {
       res.statusCode = httpNode.error || 200;
       res.on = function(e, cb) {
         if (e == 'data')
-          return cb('id');
+          return cb(new Buffer('id'));
         if (e == 'end')
           return cb();
       };
- 
+
       return cb(res);
     };
+  });
+  after(function() {
+    clock.restore();
   });
 
   it('Make a PP request with browser', function(done) {
@@ -91,7 +97,8 @@ describe('paypro', function() {
       xhr: xhr,
       env: 'browser',
     }, function(err, res) {
-      err.should.contain('HTTP Request Error');
+      err.should.be.an.instanceOf(Error);
+      err.message.should.equal('HTTP Request Error');
       done();
     });
   });
@@ -106,7 +113,8 @@ describe('paypro', function() {
       xhr: xhr,
       env: 'browser',
     }, function(err, res) {
-      err.should.contain('myerror');
+      err.should.be.an.instanceOf(Error);
+      err.message.should.equal('myerror');
       done();
     });
   });
@@ -138,7 +146,8 @@ describe('paypro', function() {
       httpNode: httpNode,
       env: 'node',
     }, function(err, res) {
-      err.should.contain('HTTP Request Error');
+      err.should.be.an.instanceOf(Error);
+      err.message.should.equal('HTTP Request Error');
       done();
     });
   });
@@ -150,7 +159,7 @@ describe('paypro', function() {
     for (var i = 0; i < payment.length; i++) {
       s += payment[i].toString(16);
     }
-    s.should.equal('a4c7b22696e766f6963654964223a22436962454a4a74473174394837374b6d4d3631453274222c226d65726368616e744964223a22444766754344656f66556e576a446d5537454c634568227d12412ab12341a1b8641217a914ae6eeec7e05624db748f9c16cce6fb53696ab3987');
+    s.should.equal('a4c7b22696e766f6963654964223a22436962454a4a74473174394837374b6d4d3631453274222c226d65726368616e744964223a22444766754344656f66556e576a446d5537454c634568227d12412ab12341a1d864121976a914ae6eeec7e05624db748f9c16cce6fb53696ab3988ac');
   });
 
   it('Send a PP payment (browser)', function(done) {
